@@ -10,6 +10,8 @@
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{url}
+\usepackage{hyperref}
+
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 \begin{document}
@@ -72,6 +74,72 @@ Redux introduces a global, immutable state container, which is inspired by the F
 
 Taken together, these approaches demonstrate that there is no single dominant solution for Flutter state management, but rather a spectrum of patterns ranging from lightweight, implicit reactivity to highly structured, explicit data flows~\cite{sanghmitra2024dilemma, Szczepanik2020state}. BLoC and Cubit occupy a position within this spectrum that emphasizes clarity, unidirectional data flow, and testability~\cite{sanghmitra2024dilemma}. Understanding these differences provides the conceptual foundation for the comparative analysis undertaken in the remainder of this paper.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Comparison Prototype}
+
+To enable a concrete and comparable discussion of Flutter state management paradigms, a prototypical application was implemented using multiple approaches. The prototype models a minimal but representative authentication workflow, including login, logout, asynchronous repository access, and navigation between screens. This scope was chosen because it combines user interaction, asynchronous state changes, and cross-screen state propagation, which are common requirements in real-world Flutter applications.
+
+Each variant of the prototype implements the same user interface, navigation flow, and repository abstraction. The authentication repository simulates an external data source and is shared across all implementations to avoid confounding architectural differences. Only the state management layer differs between variants. This constraint ensures that observed differences arise primarily from the paradigms themselves rather than from unrelated design decisions. The full implementation is publicly available as an open-source repository\footnote{\url{https://github.com/LukasZando/saap_bloc_project}}.
+
+The prototype includes implementations using BLoC, Cubit, Provider, Riverpod, Redux, MobX, and GetX. For each approach, the application exposes identical user-facing behavior: validation of input, a loading state during authentication, a success state containing user data, and a logout operation that resets application state. Navigation logic is intentionally kept minimal to focus on how each paradigm models and propagates state changes.
+
+Rather than serving as a benchmark for performance or developer productivity, the prototype functions as a didactic artifact. It enables a systematic comparison of architectural structure, explicitness of data flow, and maintainability-related properties discussed in the literature. In particular, it provides a concrete basis for examining claims about verbosity, scalability, and separation of concerns, with BLoC serving as the primary reference architecture for comparison.
+
+\section{Comparative Analysis of State Management Paradigms}
+
+This section outlines the core principles of each state management paradigm represented in the prototype, followed by a comparative discussion of their strengths and limitations as observed in the implementation. The analysis emphasizes BLoC and relates alternative approaches to it.
+
+\subsection{Core Paradigms}
+
+\textit{BLoC (Business Logic Component)}\footnote{\url{https://bloclibrary.dev/}} models application behavior through explicit events and immutable states. State transitions are handled in response to events, enforcing unidirectional data flow and a strict separation between presentation and business logic. All side effects are isolated from the UI layer.
+
+\textit{Cubit}\footnote{\url{https://bloclibrary.dev/bloc-concepts/\#cubit}} is a streamlined variant of BLoC that removes the explicit event layer. State changes are triggered directly through method calls, reducing boilerplate while retaining controlled, reactive state emission.
+
+\textit{Provider}\footnote{\url{https://docs.flutter.dev/data-and-backend/state-mgmt/simple}} exposes mutable state objects to the widget tree using inherited widgets, commonly relying on \texttt{ChangeNotifier} for update propagation. It integrates closely with Flutter’s widget lifecycle and favors simplicity over structural rigidity.
+
+\textit{Riverpod}\footnote{\url{https://riverpod.dev/}} generalizes the Provider model by decoupling state access from the widget hierarchy. Providers are immutable descriptions of state dependencies, enabling improved testability and clearer dependency management.
+
+\textit{Redux}\footnote{\url{https://pub.dev/documentation/flutter_redux/}} centralizes application state into a single immutable store. State changes occur exclusively through dispatched actions processed by pure reducer functions, enforcing a highly rigid unidirectional data flow.
+
+\textit{MobX}\footnote{\url{https://mobx.netlify.app/}} follows a reactive programming model in which observable state automatically triggers updates in dependent observers. State mutations are permitted through annotated actions, with reactivity handled implicitly. MobX further relies on code generation to transform annotated classes into reactive stores. This mechanism simplifies the definition of observable state but introduces an additional compilation step and dependency on build tooling, which may influence development workflow and project configuration.
+
+\textit{GetX}\footnote{\url{https://pub.dev/packages/get}} combines state management, dependency injection, and navigation into a unified framework. It emphasizes minimal boilerplate and direct state mutation with reactive updates. Furthermore, the fact that it is a whole framework, not just a state management library, can be seen as a strength, but also means overkill for simple applications, if only state management is needed.
+
+\subsection{Prototype-Based Comparison}
+
+Within the prototype, BLoC exhibits the highest degree of structural explicitness. All state transitions are centralized and traceable, making the flow of data and side effects immediately visible. This clarity comes at the cost of verbosity, particularly for simple interactions such as form input validation. However, the explicit modeling aligns well with the prototype’s asynchronous authentication logic and facilitates reasoning about edge cases.
+
+Cubit demonstrates that much of BLoC’s structural benefit can be retained with reduced syntactic overhead. In the prototype, Cubit provides a more concise implementation while still maintaining clear ownership of state transitions. This makes it suitable for medium-sized features where full event modeling is unnecessary.
+
+Provider and MobX yield the most concise implementations. For the prototype’s limited scope, both approaches are easy to implement and intuitive to follow. However, state mutations can occur from multiple locations, which reduces transparency. As the prototype grows beyond a single feature, reasoning about state dependencies becomes more difficult compared to BLoC-based approaches.
+
+Riverpod improves upon Provider by making dependencies explicit and removing reliance on widget context for state access. In the prototype, this results in cleaner separation of concerns and improved testability. While still less rigid than BLoC, Riverpod offers a balanced trade-off between structure and flexibility.
+
+Redux enforces a level of rigor comparable to BLoC but at a global scale. In the prototype, this rigidity appears excessive relative to the application’s size. The requirement to define actions and reducers for all state changes increases cognitive overhead without providing proportional benefits for localized state.
+
+GetX enables the fastest implementation of the prototype due to its minimal boilerplate and integrated navigation. However, the implicit nature of state updates and reliance on framework conventions reduce architectural transparency. This makes it difficult to reason about state flow as the application scales.
+
+% \subsection{Guidance for Practical Use}
+
+% Based on the prototype and supporting literature, BLoC is well suited for large, long-lived Flutter applications where maintainability, testability, and explicit state transitions are critical. Its verbosity is justified when multiple developers and features must coordinate complex logic.
+
+% Cubit and Riverpod represent pragmatic alternatives when similar guarantees are desired with reduced complexity. Provider, MobX, and GetX are appropriate for smaller applications or rapidly evolving prototypes where simplicity and speed outweigh long-term architectural concerns. Redux is most applicable in scenarios requiring strict global state consistency but may be unnecessarily rigid for typical Flutter applications.
+
+% Overall, the comparison suggests that no single paradigm is universally optimal. Instead, architectural decisions should be guided by application scale, team experience, and the expected evolution of state complexity, with BLoC serving as a robust baseline for evaluating trade-offs.
+
+\subsection{Guidance for Practical Use}
+
+The comparison suggests that the suitability of a state management paradigm depends strongly on application scale, architectural requirements, and team conventions. BLoC is particularly appropriate for large, long-lived Flutter applications in which explicit state transitions, unidirectional data flow, and strict separation of concerns are required. Its verbosity introduces overhead for small features but provides long-term benefits in maintainability, testability, and onboarding as system complexity grows.
+
+Cubit and Riverpod offer viable alternatives when a similar degree of structure is desired with reduced boilerplate. Cubit is well suited for feature-scoped state with limited interaction complexity, while Riverpod provides flexible dependency management and improved testability without enforcing a fully event-driven model. Both approaches can serve as intermediate solutions between lightweight state handling and the rigor of BLoC.
+
+Provider and MobX prioritize simplicity and developer ergonomics. They are effective in scenarios where state logic remains localized and relatively stable. However, as demonstrated in the prototype, implicit state mutations and distributed update logic can make it harder to reason about application behavior as features accumulate, which may limit scalability in larger codebases.
+
+Redux enforces a highly centralized and rigid architecture that can be beneficial for applications requiring strict global state consistency and traceability. In the context of the prototype, this level of rigor introduces substantial boilerplate relative to the problem size and is most justifiable in applications with complex cross-feature coordination.
+
+GetX differs from the other approaches in that it provides not only state management but also navigation and dependency injection as part of a unified framework. This integration can reduce implementation effort but also increases coupling to framework-specific conventions. As a result, GetX represents a broader architectural commitment rather than a lightweight state management choice, which should be carefully evaluated in projects with long-term maintainability or framework independence requirements.
+
+
 \section*{Acknowledgment}
 
 The preferred spelling of the word ``acknowledgment'' in America is without 
@@ -79,39 +147,8 @@ an ``e'' after the ``g''. Avoid the stilted expression ``one of us (R. B.
 G.) thanks $\ldots$''. Instead, try ``R. B. G. thanks$\ldots$''. Put sponsor 
 acknowledgments in the unnumbered footnote on the first page.
 
-\section*{References}
-
-Please number citations consecutively within brackets \cite{b1}. The 
-sentence punctuation follows the bracket \cite{b2}. Refer simply to the reference 
-number, as in \cite{b3}---do not use ``Ref. \cite{b3}'' or ``reference \cite{b3}'' except at 
-the beginning of a sentence: ``Reference \cite{b3} was the first $\ldots$''
-
-Number footnotes separately in superscripts. Place the actual footnote at 
-the bottom of the column in which it was cited. Do not put footnotes in the 
-abstract or reference list. Use letters for table footnotes.
-
-Unless there are six authors or more give all authors' names; do not use 
-``et al.''. Papers that have not been published, even if they have been 
-submitted for publication, should be cited as ``unpublished'' \cite{b4}. Papers 
-that have been accepted for publication should be cited as ``in press'' \cite{b5}. 
-Capitalize only the first word in a paper title, except for proper nouns and 
-element symbols.
-
-For papers published in translation journals, please give the English 
-citation first, followed by the original foreign-language citation \cite{b6}.
-
 \begin{thebibliography}{00}
-\bibitem{b1} G. Eason, B. Noble, and I. N. Sneddon, ``On certain integrals of Lipschitz-Hankel type involving products of Bessel functions,'' Phil. Trans. Roy. Soc. London, vol. A247, pp. 529--551, April 1955.
-\bibitem{b2} J. Clerk Maxwell, A Treatise on Electricity and Magnetism, 3rd ed., vol. 2. Oxford: Clarendon, 1892, pp.68--73.
-\bibitem{b3} I. S. Jacobs and C. P. Bean, ``Fine particles, thin films and exchange anisotropy,'' in Magnetism, vol. III, G. T. Rado and H. Suhl, Eds. New York: Academic, 1963, pp. 271--350.
-\bibitem{b4} K. Elissa, ``Title of paper if known,'' unpublished.
-\bibitem{b5} R. Nicole, ``Title of paper with only first word capitalized,'' J. Name Stand. Abbrev., in press.
-\bibitem{b6} Y. Yorozu, M. Hirano, K. Oka, and Y. Tagawa, ``Electron spectroscopy studies on magneto-optical media and plastic substrate interface,'' IEEE Transl. J. Magn. Japan, vol. 2, pp. 740--741, August 1987 [Digests 9th Annual Conf. Magnetics Japan, p. 301, 1982].
-\bibitem{b7} M. Young, The Technical Writer's Handbook. Mill Valley, CA: University Science, 1989.
-\bibitem{b8} D. P. Kingma and M. Welling, ``Auto-encoding variational Bayes,'' 2013, arXiv:1312.6114. [Online]. Available: https://arxiv.org/abs/1312.6114
-\bibitem{b9} S. Liu, ``Wi-Fi Energy Detection Testbed (12MTC),'' 2023, gitHub repository. [Online]. Available: https://github.com/liustone99/Wi-Fi-Energy-Detection-Testbed-12MTC
-\bibitem{b10} ``Treatment episode data set: discharges (TEDS-D): concatenated, 2006 to 2009.'' U.S. Department of Health and Human Services, Substance Abuse and Mental Health Services Administration, Office of Applied Studies, August, 2013, DOI:10.3886/ICPSR30122.v2
-\bibitem{b11} K. Eves and J. Valasek, ``Adaptive control for singularly perturbed systems examples,'' Code Ocean, Aug. 2023. [Online]. Available: https://codeocean.com/capsule/4989235/tree
+
 \bibitem{Jost2025frameworks} G. Jošt and V. Taneski, "State-of-the-Art Cross-Platform Mobile Application Development Frameworks: A Comparative Study of Market and Developer Trends," Informatics, vol. 12, no. 2, p. 45, 2025. DOI: 10.3390/informatics12020045
 
 \bibitem{zou2024analysis} D. Zou and M. Y. Darus, "A Comparative Analysis of Cross-Platform Mobile Development Frameworks," in 2024 International Symposium on Computer Science and Intelligent Controls (ISCI), 2024. DOI: 10.1109/isci62787.2024.10667693
@@ -154,10 +191,6 @@ Apress, 2019, pp. 227--246, doi: 10.1007/978-1-4842-4982-6\_10.
 \bibitem{Riverpod2026} Riverpod, "Riverpod Documentation," 2026. [Online]. Available: \url{https://riverpod.dev/}. [Accessed: Jan. 13, 2026].
 
 \end{thebibliography}
-
-\vspace{12pt}
-\color{red}
-IEEE conference templates contain guidance text for composing and formatting conference papers. Please ensure that all template text is removed from your conference paper prior to submission to the conference. Failure to remove the template text from your paper may result in your paper not being published.
 
 \end{document}
 
